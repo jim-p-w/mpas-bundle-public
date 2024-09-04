@@ -7,8 +7,11 @@
 # MPAS/JEDI bundle
 #
 
+#
+# Usage: cmake <mpas-bundle src dir> -DCMAKE_BUILD_TYPE=RelWithDebINfo -DCMAKE_VERBOSE_MAKEFILE=ON -DSNAPSHOT_DATE=2024-06-01 -DMPAS_DOUBLE_PRECISION=OFF
+
 cmake_minimum_required( VERSION 3.14 )
-project( mpas-bundle VERSION 1.0.0 LANGUAGES C CXX Fortran )
+project( mpas-bundle VERSION 3.0.0 LANGUAGES C CXX Fortran )
 
 ## ECBuild integration
 include(GNUInstallDirs)
@@ -20,14 +23,14 @@ set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
 find_package( ecbuild 3.5 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild )
 include( ecbuild_bundle )
 ecbuild_bundle_initialize()
-
 # Use external jedi-cmake or build in bundle
+
 if(DEFINED ENV{jedi_cmake_ROOT})
   include( $ENV{jedi_cmake_ROOT}/share/jedicmake/Functions/git_functions.cmake )
   list( APPEND CMAKE_MODULE_PATH $ENV{jedi_cmake_ROOT}/share/jedicmake/Modules )
   message (INFO "CMAKE_MODULE_PATH")
 else()
-  ecbuild_bundle( PROJECT jedicmake GIT "https://github.com/jcsda-internal/jedi-cmake.git" BRANCH develop UPDATE RECURSIVE )
+  ecbuild_bundle( PROJECT jedicmake GIT "https://github.com/JCSDA-internal/jedi-cmake.git" BRANCH develop UPDATE RECURSIVE )
   include( jedicmake/cmake/Functions/git_functions.cmake )
   list( APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/jedicmake/CMakeModules/Modules )
 endif()
@@ -46,15 +49,16 @@ option(BUNDLE_SKIP_RTTOV "Don't build rttov"  "ON") # Skip rttov build unless us
 ecbuild_bundle( PROJECT rttov     GIT "https://github.com/JCSDA-internal/rttov.git"       BRANCH develop UPDATE )
 
 ecbuild_bundle( PROJECT oops      GIT "https://github.com/JCSDA-internal/oops.git"        BRANCH develop UPDATE )
-ecbuild_bundle( PROJECT vader     GIT "https://github.com/jcsda-internal/vader.git"       BRANCH develop UPDATE )
+ecbuild_bundle( PROJECT vader     GIT "https://github.com/JCSDA-internal/vader.git"       BRANCH develop UPDATE )
 ecbuild_bundle( PROJECT saber     GIT "https://github.com/JCSDA-internal/saber.git"       BRANCH develop UPDATE )
 ecbuild_bundle( PROJECT crtm      GIT "https://github.com/JCSDA/CRTMv3.git"               BRANCH develop UPDATE )
+
 option(ENABLE_IODA_DATA "Obtain ioda test data from ioda-data repository (vs tarball)" ON)
-ecbuild_bundle( PROJECT ioda-data GIT "https://github.com/jcsda-internal/ioda-data.git"   BRANCH develop UPDATE )
-ecbuild_bundle( PROJECT ioda      GIT "https://github.com/jcsda-internal/ioda.git"        BRANCH develop UPDATE )
+ecbuild_bundle( PROJECT ioda-data GIT "https://github.com/JCSDA-internal/ioda-data.git"   BRANCH develop UPDATE )
+ecbuild_bundle( PROJECT ioda      GIT "https://github.com/JCSDA-internal/ioda.git"        BRANCH develop UPDATE )
 option(ENABLE_UFO_DATA "Obtain ufo test data from ufo-data repository (vs tarball)" ON)
-ecbuild_bundle( PROJECT ufo-data  GIT "https://github.com/jcsda-internal/ufo-data.git"    BRANCH develop UPDATE )
-ecbuild_bundle( PROJECT ufo       GIT "https://github.com/jcsda-internal/ufo.git"         BRANCH develop UPDATE )
+ecbuild_bundle( PROJECT ufo-data  GIT "https://github.com/JCSDA-internal/ufo-data.git"    BRANCH develop UPDATE )
+ecbuild_bundle( PROJECT ufo       GIT "https://github.com/JCSDA-internal/ufo.git"         BRANCH develop UPDATE )
 
 
 # Find external ESMF for mpas-model (optional)
@@ -63,11 +67,9 @@ find_package(ESMF 8.3.0 MODULE)
 set(MPAS_DOUBLE_PRECISION "ON" CACHE STRING "MPAS-Model: Use double precision 64-bit Floating point.")
 set(MPAS_CORES init_atmosphere atmosphere CACHE STRING "MPAS-Model: cores to build.")
 
-ecbuild_bundle( PROJECT MPAS      GIT "https://github.com/JCSDA-internal/MPAS-Model.git" BRANCH release-stable UPDATE )
-option(BUNDLE_SKIP_SACA "Don't build saca"  "ON") # Skip saca build unless user passes -DBUNDLE_SKIP_SACA=OFF
-ecbuild_bundle( PROJECT saca      GIT "https://github.com/liujake/SACA.git"              BRANCH develop UPDATE )
+ecbuild_bundle( PROJECT MPAS      GIT "https://github.com/MPAS-Dev/MPAS-Model" TAG v8.2.1 )
 option(ENABLE_MPAS_JEDI_DATA "Obtain mpas-jedi test data from mpas-jedi-data repository (vs tarball)" ON)
-ecbuild_bundle( PROJECT mpas-jedi-data  GIT "https://github.com/jcsda-internal/mpas-jedi-data.git"  BRANCH develop UPDATE )
+ecbuild_bundle( PROJECT mpas-jedi-data  GIT "https://github.com/JCSDA-internal/mpas-jedi-data.git"  BRANCH develop UPDATE )
 ecbuild_bundle( PROJECT mpas-jedi GIT "https://github.com/JCSDA-internal/mpas-jedi"      BRANCH develop UPDATE )
 
 # Set GIT_BRANCH_FUNC to MPAS-JEDI's current branch so that it can be used for mpas-jedi-data
