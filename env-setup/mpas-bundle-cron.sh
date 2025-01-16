@@ -51,6 +51,7 @@ usage()
   log "    -c <compiler> is one of gnu, intel or both"
   log "    -q <queue> is ${MAIN_Q}, ${DEV_Q} or ${PREEMPT_Q}, defaults to ${MAIN_Q}"
   log "    -p <precision> is 1 or 2, defaults to 2 (double)"
+  log "    -s means build MPAS-Model with SMIOL I/O library, default is PIO"
   log "    -l <lock_file> is absolute path to the lock file which indicates the build is running,"
   log "        default is <bundle_dir>/$lock_file_name"
   log "    -o <out_dir> is where the html files will be copied to, default is $html_dir"
@@ -144,7 +145,7 @@ run_cmake()
 cat > $cmake_script << CMAKE_EOF
 #!/bin/bash
 #
-cd $1 && source ../mpas-bundle/env-setup/$2-derecho.sh && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$3 ctest_update  ../mpas-bundle;
+cd $1 && source ../mpas-bundle/env-setup/$2-derecho.sh && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$3 -DMPAS_USE_SMIOL=$4 ctest_update  ../mpas-bundle;
 CMAKE_EOF
 
   chmod 755 ${cmake_script}
@@ -392,7 +393,7 @@ build_and_test()
   # run cmake on a login node (compute nodes have poor internet transmission)
   # block until cmake finishes
   if [[ "$run_cmake" == "yes" ]]; then
-    run_cmake ${BUILD_DIR} ${cc} $dbl_p
+    run_cmake ${BUILD_DIR} ${cc} $dbl_p $mpas_use_smiol
   fi
 
   # create script to run gnu make and run it
@@ -432,18 +433,20 @@ QUEUE=$MAIN_Q
 BUNDLE_DIR=""
 tools=""
 precision="2"
+mpas_use_smiol="OFF"
 force_build=0
 LOG_DIR="${HOME}/my_cron_logs/"
 help=""
 run_cmake="yes"
 
 # get comamnd line args
-while getopts d:q:p:c:l:o:fhn flag
+while getopts d:q:p:c:l:o:sfhn flag
 do
   case "${flag}" in
     d) BUNDLE_DIR="${OPTARG}";;
     q) QUEUE="${OPTARG}";;
     p) precision=${OPTARG};;
+    s) mpas_use_smiol="ON";;
     c) tools=${OPTARG};;
     l) LOCK_FILE=${OPTARG};;
     o) html_dir=${OPTARG};;
