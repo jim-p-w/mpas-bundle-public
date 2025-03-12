@@ -44,12 +44,14 @@ DEV_Q="develop@desched1"
 
 usage()
 {
-  args="-d <bundle_dir> -c <compiler> [-q <queue>] [ -p <precision>] [-l <lock_file>] [-o <out_dir>] [-f] [-h] [-n]"
+  args="-d <bundle_dir> -c <compiler> [-x <suffix>] [-q <queue>] [-a <account>] [ -p <precision>] [-l <lock_file>] [-o <out_dir>] [-f] [-h] [-n]"
   log "usage:"
   log "  mpas-bundle-cron.sh ${args}"
   log "    -d <bundle_dir> is where the mpas-bundle repo has been cloned to"
   log "    -c <compiler> is one of gnu, intel or both"
+  log "    -x <suffix> is a suffix to add to the build directory"
   log "    -q <queue> is ${MAIN_Q}, ${DEV_Q} or ${PREEMPT_Q}, defaults to ${MAIN_Q}"
+  log "    -a <account> is the account to use when submitting PBS jbs (e.g. 'nmmm0015')"
   log "    -p <precision> is 1 or 2, defaults to 2 (double)"
   log "    -l <lock_file> is absolute path to the lock file which indicates the build is running,"
   log "        default is <bundle_dir>/$lock_file_name"
@@ -235,8 +237,8 @@ run_ctests()
 
   # create script to run ctest and run it, holding it until the make job finishes
   mv ./${CTEST_LOGFILE} ./${CTEST_LOGFILE}.old
-  log "${scripts}/run_make.bundle.sh -A nmmm0015 -q ${QUEUE} -p economy -x ctest -c ${cc} -N cron-${cc}-ctest-mpas -m -n"
-  ${scripts}/run_make.bundle.sh -A nmmm0015 -q ${QUEUE} -p economy -x ctest -c ${cc} -N "cron-${cc}-ctest-mpas" -m -n
+  log "${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N cron-${cc}-ctest-mpas -m -n"
+  ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N "cron-${cc}-ctest-mpas" -m -n
   local ctest_job=$(qsub -W depend=afterok:${make_job} ./ctest.pbs.sh) || \
     { log "cannot connect to Derecho PBS" ; exit 1; }
   log "${cc} ctest: ${ctest_job}"
@@ -371,6 +373,7 @@ build_and_test()
   local html_dir=$3
   local run_cmake=$4
   local sha_file=$5
+  local suffix=$6
 
   local build_dir_suffix=""
   if [ $dbl_p == "ON" ]; then
@@ -383,13 +386,10 @@ build_and_test()
   #--------------------------------------------------------------
   # go to build directory, exit on failure:
   BUILD_DIR="${BUNDLE_DIR}/../build-${cc}-${build_dir_suffix}"
-
-  # save the single precision builds which are used to run cylc experiments.
-  if [[ -d $BUILD_DIR && $dbl_p == "OFF" ]]; then
-    # get the date from 7 days ago and append it to the build dir
-    lastweek=$(date +%0m_%0d_%y -d "last week")
-    mv $BUILD_DIR ${BUILD_DIR}_${lastweek}
+  if [ "$suffix" != "" ]; then
+    BUILD_DIR="${BUILD_DIR}_${suffix}"
   fi
+
   mkdir -p ${BUILD_DIR}
   log "BUNDLE_DIR ${BUNDLE_DIR}"
   log "BUILD_DIR ${BUILD_DIR}"
@@ -404,8 +404,8 @@ build_and_test()
 
   # create script to run gnu make and run it
   mv make.pbs.sh.log make.pbs.sh.log.old
-  log "${scripts}/run_make.bundle.sh -A nmmm0015 -q ${QUEUE} -p economy -x make -c ${cc} -N cron-${cc}-make-mpas -m -n"
-  ${scripts}/run_make.bundle.sh -A nmmm0015 -q ${QUEUE} -p economy -x make -c ${cc} -N "cron-${cc}-make-mpas" -m -n
+  log "${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x make -c ${cc} -N cron-${cc}-make-mpas -m -n"
+  ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x make -c ${cc} -N "cron-${cc}-make-mpas" -m -n
   local make_job=$(qsub make.pbs.sh) || { log "cannot connect to Derecho PBS"; exit 1; }
   log "${cc} make: ${make_job}"
   local ctest_time=""
@@ -443,17 +443,21 @@ force_build=0
 LOG_DIR="${HOME}/my_cron_logs/"
 help=""
 run_cmake="yes"
+suffix=""
+ACCOUNT="nmmm0015"
 
 # get comamnd line args
-while getopts d:q:p:c:l:o:fhn flag
+while getopts d:q:a:p:c:l:o:x:fhn flag
 do
   case "${flag}" in
     d) BUNDLE_DIR="${OPTARG}";;
     q) QUEUE="${OPTARG}";;
+    a) ACCOUNT="${OPTARG}";;
     p) precision=${OPTARG};;
     c) tools=${OPTARG};;
     l) LOCK_FILE=${OPTARG};;
     o) html_dir=${OPTARG};;
+    x) suffix=${OPTARG};;
     f) force_build=1;;
     h) help="help";;
     n) run_cmake="no";;
@@ -461,6 +465,7 @@ do
 done
 
 init_logs $LOG_DIR
+log "commandline: $0 $*"
 
 if [ "$help" != "" ]; then
   usage
@@ -531,12 +536,13 @@ else
   log "building with tools ${tools}"
   # build gnu version and run ctest
   if [[ "$tools" == "gnu" || "$tools" == "both" ]]; then
-    build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file
+    log "build_and_test gnu $dbl_precision $html_dir $run_cmake $sha_file $suffix"
+    build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $suffix
   fi
 
   # build intel version and run ctest
   if [[ "$tools" == "intel" || "$tools" == "both" ]]; then
-    build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file
+    build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $suffix
   fi
 fi
 
