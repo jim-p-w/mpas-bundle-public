@@ -425,6 +425,21 @@ build_and_test()
     queue_wait ${make_job} 0 60
     summary="Single precision build - no ctests run"
     ctest_time="NA"
+
+    # make a symlink to the latest single precision build on success
+    check_pbs_return $make_job
+    local make_rc=$?
+    if [ "$make_rc" -eq 0 ]; then
+      build_dir_root=${BUILD_DIR%%_*}
+      latest_dir="${build_dir_root}_latest"
+      log "rm $latest_dir"
+      rm $latest_dir
+      log "ln -s $(pwd) $latest_dir"
+      ln -s $(pwd) $latest_dir
+    else
+      summary="single precision make job failed return code $make_rc"
+      ctest_time="NA"
+    fi
   fi
 
   #
