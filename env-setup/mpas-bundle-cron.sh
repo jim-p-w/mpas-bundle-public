@@ -48,7 +48,7 @@ usage()
   log "usage:"
   log "  mpas-bundle-cron.sh ${args}"
   log "    -d <bundle_dir> is where the mpas-bundle repo has been cloned to"
-  log "    -c <compiler> is one of gnu, intel or both"
+  log "    -c <compiler> is one of gnu, intel, nvhpc, or all"
   log "    -x <suffix> is a suffix to add to the build directory"
   log "    -q <queue> is ${MAIN_Q}, ${DEV_Q} or ${PREEMPT_Q}, defaults to ${MAIN_Q}"
   log "    -a <account> is the account to use when submitting PBS jbs (e.g. 'nmmm0015')"
@@ -150,6 +150,7 @@ cd $1 && source ../mpas-bundle/env-setup/$2-derecho.sh && if [ -f Makefile ]; th
 CMAKE_EOF
 
   chmod 755 ${cmake_script}
+  log "ssh derecho.hpc.ucar.edu ${cmake_script} |& tee ${cmake_script}.log"
   ssh derecho.hpc.ucar.edu ${cmake_script} |& tee ${cmake_script}.log
 }
 
@@ -308,12 +309,14 @@ make_html()
   log "spack-stack: ${spack_stack}"
   if [ ${cc} == "gnu" ]; then
     local comp="gcc"
-  else
+  elif [ ${cc} == "intel" ]; then
     local comp="intel"
+  elif [ ${cc} == "nvhpc" ]; then
+    local comp="nvhpc"
   fi
-  local compiler=$(grep "load *stack-${comp}" ../mpas-bundle/env-setup/${cc}-derecho.sh | awk '{print $3}')
+  local compiler=$(grep "load .*${comp}" ../mpas-bundle/env-setup/${cc}-derecho.sh | awk '{print $3}')
   log "compiler: ${compiler}"
-  local mpich=$(grep "load *stack-cray" ../mpas-bundle/env-setup/${cc}-derecho.sh | awk '{print $3}')
+  local mpich=$(grep "load .*cray-mpich" ../mpas-bundle/env-setup/${cc}-derecho.sh | awk '{print $3}')
   log "mpich: ${mpich}"
 
 
@@ -550,14 +553,18 @@ if [ "$force_build" -eq 0 ]; then
 else
   log "building with tools ${tools}"
   # build gnu version and run ctest
-  if [[ "$tools" == "gnu" || "$tools" == "both" ]]; then
-    log "build_and_test gnu $dbl_precision $html_dir $run_cmake $sha_file $suffix"
+  if [[ "$tools" == "gnu" || "$tools" == "all" ]]; then
     build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $suffix
   fi
 
   # build intel version and run ctest
-  if [[ "$tools" == "intel" || "$tools" == "both" ]]; then
+  if [[ "$tools" == "intel" || "$tools" == "all" ]]; then
     build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $suffix
+  fi
+
+  # build nvhpc version and run ctest
+  if [[ "$tools" == "nvhpc" || "$tools" == "all" ]]; then
+    build_and_test "nvhpc" $dbl_precision $html_dir $run_cmake $sha_file $suffix
   fi
 fi
 
