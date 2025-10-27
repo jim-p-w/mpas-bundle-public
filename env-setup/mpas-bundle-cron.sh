@@ -4,7 +4,7 @@
 # Script to build mpas-bundle and run mpas-jedi ctests.
 # mpas-bundle may be built with both the gnu and intel tool chains.
 # After running mpas-jedi ctests the results will be put into an html document,
-# which will be copied to the web pages directory on whitedwarf.mmm.ucar.edu
+# which will be copied to the web pages directory on an mmm server.
 #
 # This script assumes the mpas-bundle repository has been cloned into
 #  <some_dir>/<mpas-bundle_dir>    # directory mpas-bundle has been cloned to
@@ -32,7 +32,7 @@ init_logs()
   HTML_BODY_FILE="${cron_logdir}/body.html"
 }
 
-# where to copy html output files on whitedwarf.mmm.ucar.edu
+# where to copy html output files on mmm web pages server
 html_dir="/web/htdocs/projects/mpas-jedi/weekly-ctests"
 # available queues to use
 # normal cpu hours are charged
@@ -87,7 +87,8 @@ another_instance()
 check_pbs_return()
 {
   local jobno=$1
-  local pbs_status=$(qstat -x -f $jobno | grep 'Exit_status')
+  local pbs_status=$(QSCACHE_BYPASS=1 qstat -x -f $jobno | grep 'Exit_status')
+  log "jobno=$jobno pbs_status=$pbs_status"
 
   if [ ! -z "${pbs_status}" ]; then
     retcode=$(echo $pbs_status|awk '{print $3}')
@@ -107,11 +108,21 @@ queue_wait()
 
   qstat ${job} &> /dev/null
   local rc=$?
-  while [ ${rc} == "${pcode}" ]; do
-    sleep ${secs}
-    qstat ${job} &> /dev/null
-    rc=$?
-  done
+  log "queue_wait started job=$job pcode=$pcode rc=$rc"
+  if [ $pcode -gt 0 ]; then
+    while [ ${rc} -gt 0 ]; do
+      sleep ${secs}
+      qstat ${job} &> /dev/null
+      rc=$?
+    done
+  else
+    while [ ${rc} -eq 0 ]; do
+      sleep ${secs}
+      qstat ${job} &> /dev/null
+      rc=$?
+    done
+  fi
+  log "queue_wait finished job=$job pcode=$pcode rc=$rc"
 }
 
 # write html header, including the table directive
@@ -337,7 +348,7 @@ make_html()
   print_footer index.html
   rm body.html
 
-  local host="whitedwarf.mmm.ucar.edu"
+  local host="eris.mmm.ucar.edu"
   local dest="${host}:${dest_dir}"
   local index_tarfile="index.tar"
 
