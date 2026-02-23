@@ -157,7 +157,7 @@ run_cmake()
 cat > $cmake_script << CMAKE_EOF
 #!/bin/bash
 #
-cd $1 && source ../mpas-bundle/env-setup/$2-derecho.sh && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$3 ctest_update  ../mpas-bundle;
+cd $1 && source $2/env-setup/$3-derecho.sh && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$4 ctest_update  $2;
 CMAKE_EOF
 
   chmod 755 ${cmake_script}
@@ -316,7 +316,7 @@ make_html()
   log "            chref=$href sha_file=$sha_file sha_file:t=${sha_file##*/}"
 
   # get tool versions to put into summary table
-  local spack_stack=$(grep spack-stack- ../mpas-bundle/env-setup/${cc}-derecho.sh | awk -F/ '{print $8}')
+  local spack_stack=$(grep spack-stack- ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk -F/ '{print $8}')
   log "spack-stack: ${spack_stack}"
   if [ ${cc} == "gnu" ]; then
     local comp="gcc"
@@ -325,9 +325,9 @@ make_html()
   elif [ ${cc} == "nvhpc" ]; then
     local comp="nvhpc"
   fi
-  local compiler=$(grep "load .*${comp}" ../mpas-bundle/env-setup/${cc}-derecho.sh | awk '{print $3}')
+  local compiler=$(grep "load .*${comp}" ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk '{print $3}')
   log "compiler: ${compiler}"
-  local mpich=$(grep "load .*cray-mpich" ../mpas-bundle/env-setup/${cc}-derecho.sh | awk '{print $3}')
+  local mpich=$(grep "load .*cray-mpich" ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk '{print $3}')
   log "mpich: ${mpich}"
 
 
@@ -399,7 +399,7 @@ build_and_test()
 
   #--------------------------------------------------------------
   # go to build directory, exit on failure:
-  BUILD_DIR="${BUNDLE_DIR}/../build-${cc}-${build_dir_suffix}"
+  BUILD_DIR="${BUILD_DIR_ROOT}/build-${cc}-${build_dir_suffix}"
   if [ "$suffix" != "" ]; then
     BUILD_DIR="${BUILD_DIR}_${suffix}"
   fi
@@ -413,7 +413,7 @@ build_and_test()
   # run cmake on a login node (compute nodes have poor internet transmission)
   # block until cmake finishes
   if [[ "$run_cmake" == "yes" ]]; then
-    run_cmake ${BUILD_DIR} ${cc} $dbl_p
+    run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p
   fi
 
   # create script to run gnu make and run it
@@ -466,6 +466,7 @@ build_and_test()
 CTEST_LOGFILE="ctest.pbs.sh.log"
 QUEUE=$MAIN_Q
 BUNDLE_DIR=""
+BUILD_DIR_ROOT=""
 tools=""
 precision="2"
 force_build=0
@@ -476,10 +477,11 @@ suffix=""
 ACCOUNT="nmmm0015"
 
 # get comamnd line args
-while getopts d:q:a:p:c:l:o:x:fhn flag
+while getopts d:b:q:a:p:c:l:o:x:fhn flag
 do
   case "${flag}" in
     d) BUNDLE_DIR="${OPTARG}";;
+    b) BUILD_DIR_ROOT="${OPTARG}";;
     q) QUEUE="${OPTARG}";;
     a) ACCOUNT="${OPTARG}";;
     p) precision=${OPTARG};;
@@ -505,9 +507,19 @@ if [ "$BUNDLE_DIR" = "" ]; then
   log "source dir <-d source_dir> is required"
   usage
 fi
+
 if [ ! -d ${BUNDLE_DIR} ]; then
   log "source dir ${BUNDLE_DIR} does not exist"
   usage
+fi
+
+if [ "$BUILD_DIR_ROOT" == "" ]; then
+  BUILD_DIR_ROOT="${BUNDLE_DIR}/.."
+else
+  if [ ! -d ${BUILD_DIR_ROOT} ]; then
+    log "output dir ${BUILD_DIR_ROOT} does not exist"
+    usage
+  fi
 fi
 
 if [[ "$QUEUE" != "$MAIN_Q" && "$QUEUE" != "$PREEMPT_Q" && "$QUEUE" != "$DEV_Q" ]]; then
