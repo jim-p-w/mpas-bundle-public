@@ -79,7 +79,7 @@ elif [ "cron" == "$HOST" ]; then
 fi
 
 if [ "$HPC" = "derecho" ]; then
-	QUEUE="-q ${DERECHO_Q[0]}"
+	QUEUE="-q ${DERECHO_Q[1]}"
 	QUEUE_OPTS=${DERECHO_Q[@]}
 else
 	echo "unsupported HPC, must run on HPC login node"
