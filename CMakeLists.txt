@@ -65,6 +65,11 @@ else()
     ecbuild_bundle( PROJECT ufo-data  GIT "https://github.com/JCSDA-internal/ufo-data.git"    BRANCH develop UPDATE )
     ecbuild_bundle( PROJECT ufo       GIT "https://github.com/JCSDA-internal/ufo.git"         BRANCH develop UPDATE )
 
+    # Build IODA converters if requested
+    option(BUILD_IODA_CONVERTERS "Build IODA Converters" OFF)
+    if(BUILD_IODA_CONVERTERS)
+      ecbuild_bundle( PROJECT iodaconv GIT "https://github.com/jcsda-internal/ioda-converters.git" BRANCH develop UPDATE )
+    endif()
 
     # Find external ESMF for mpas-model (optional)
     find_package(ESMF 8.3.0 MODULE)
